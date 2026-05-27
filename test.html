@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemma 4 Chat Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background-color: #475569;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col antialiased">
+
+    <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-10 shadow-md">
+        <div class="max-w-3xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-200">Gemma 4 Chat</h1>
+                    <p class="text-xs text-blue-400 font-mono">gemma-4-31b-it</p>
+                </div>
+            </div>
+            <button id="clear-btn" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg font-medium transition-colors text-slate-300">
+                Futa Chat
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-3xl w-full mx-auto px-4 py-6 overflow-y-auto chat-container flex flex-col gap-4" id="chat-box">
+        
+        <div class="flex gap-3 max-w-[85%]">
+            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">G</div>
+            <div class="bg-slate-800 rounded-2xl rounded-tl-none p-4 border border-slate-700 shadow-sm">
+                <p class="text-sm leading-relaxed text-slate-300">Habari! Mimi ni **Gemma 4 (31B)**. Unaweza kuniuliza swali lolote sasa hivi ili tunijaribu.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-slate-800 border-t border-slate-700 p-4 sticky bottom-0">
+        <div class="max-w-3xl mx-auto flex gap-3 items-end">
+            <div class="flex-1 relative">
+                <textarea id="user-input" rows="1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 pr-12 outline-none focus:border-blue-500 text-sm resize-none text-slate-100 max-h-32 transition-colors" placeholder="Andika ujumbe wako hapa..."></textarea>
+            </div>
+            <button id="send-btn" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all transform active:scale-95 shadow-md shrink-0 flex items-center justify-center">
+                <svg class="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                </svg>
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        const geminiApiKey = "AIzaSyD2yJtPTZpk6NwgwqU6-tQpyrrWWgJ1LzI";
+        const modelName = "gemini-3-flash-live";
+
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const clearBtn = document.getElementById('clear-btn');
+
+        // Kukuza textarea yenyewe mtumiaji anapoandika mistari mingi
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        // Kazi ya kuongeza ujumbe kwenye screen
+        function appendMessage(text, isUser = false) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex gap-3 max-w-[85%] ${isUser ? 'self-end flex-row-reverse' : ''}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = `w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isUser ? 'bg-indigo-600' : 'bg-blue-600'}`;
+            avatar.innerText = isUser ? 'W' : 'G';
+
+            const bubble = document.createElement('div');
+            bubble.className = `rounded-2xl p-4 border shadow-sm text-sm leading-relaxed ${
+                isUser 
+                ? 'bg-indigo-950/40 border-indigo-800 text-indigo-100 rounded-tr-none' 
+                : 'bg-slate-800 border-slate-700 text-slate-300 rounded-tl-none'
+            }`;
+            bubble.innerText = text;
+
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(bubble);
+            chatBox.appendChild(wrapper);
+            
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return bubble; // Tunarudisha bubble ili kuitumia kwenye stream text
+        }
+
+        // Kazi ya kutengeneza skeleton ya loading
+        function createLoader() {
+            const loader = document.createElement('div');
+            loader.id = 'gemma-loader';
+            loader.className = 'flex gap-3 max-w-[85%]';
+            loader.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">G</div>
+                <div class="bg-slate-800 rounded-2xl rounded-tl-none p-4 border border-slate-700 shadow-sm flex items-center gap-1.5 py-5">
+                    <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                    <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                    <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                </div>
+            `;
+            chatBox.appendChild(loader);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Onyesha ujumbe wa mtumiaji
+            appendMessage(message, true);
+            userInput.value = '';
+            userInput.style.height = 'auto';
+
+            // Weka loading
+            createLoader();
+
+            try {
+                // Kuita Endpoint ya Server-Sent Events (streamGenerateContent) kwa ajili ya kutiririsha majibu
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?key=${geminiApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: message }] }]
+                    })
+                });
+
+                // Ondoa loader kabla ya kuanza kuandika
+                const loader = document.getElementById('gemma-loader');
+                if (loader) loader.remove();
+
+                if (!response.ok) {
+                    throw new Error("API response error");
+                }
+
+                // Kuanzisha Stream Reader
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let responseBubble = null;
+                let fullText = "";
+
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    // Kupasua chunk ya json inayokuja kama array element au stream chunk
+                    // Google stream inarudisha format ya JSON array `[ ... ]` yenye comma kati ya vitu
+                    // Tunatafuta vipande vya maana kwa usalama:
+                    let match;
+                    // Hii inatafuta kila block ya {"candidates": ...} inayokuja kwenye buffer
+                    while ((match = buffer.match(/\{\s*"candidates"[\s\S]*?\}\s*\}\s*\}/g)) !== null) {
+                        const jsonStr = match[0];
+                        buffer = buffer.substring(jsonStr.length);
+                        
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            if (parsed.candidates && parsed.candidates[0].content?.parts?.[0]?.text) {
+                                const newText = parsed.candidates[0].content.parts[0].text;
+                                fullText += newText;
+                                
+                                // Kama bubble halijatengenezwa bado, litengeneze likiwa tupu
+                                if (!responseBubble) {
+                                    responseBubble = appendMessage("", false);
+                                }
+                                
+                                responseBubble.innerText = fullText;
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            }
+                        } catch (e) {
+                            // Kama chunk haijakamilika vizuri, iache kwenye buffer
+                        }
+                    }
+                }
+
+                // Ikiwa kuna kilichobaki kwenye buffer na hakikushughulikiwa kabisa kama array ya mwisho
+                if (fullText === "") {
+                    // Mfumo ukifeli kusoma chunk moja moja, unajaribu kusoma buffer nzima kama fallback
+                    try {
+                        // Kusafisha mabaki ya mabano ya array `[` na `]` na `,`
+                        let cleanBuffer = buffer.trim();
+                        if (cleanBuffer.startsWith('[')) cleanBuffer = cleanBuffer.substring(1);
+                        if (cleanBuffer.endsWith(']')) cleanBuffer = cleanBuffer.substring(0, cleanBuffer.length - 1);
+                        
+                        // Kujaribu kuipata text
+                        const parsedData = JSON.parse("[" + cleanBuffer + "]");
+                        parsedData.forEach(item => {
+                            if (item.candidates && item.candidates[0].content?.parts?.[0]?.text) {
+                                fullText += item.candidates[0].content.parts[0].text;
+                            }
+                        });
+                        if (fullText !== "") {
+                            responseBubble = appendMessage(fullText, false);
+                        } else {
+                            appendMessage("Samahani, gemma imeshindwa kutoa jibu sahihi.", false);
+                        }
+                    } catch (e) {
+                        appendMessage("Samahani, gemma imeshindwa kutoa jibu.", false);
+                    }
+                }
+
+            } catch (error) {
+                console.error(error);
+                const loader = document.getElementById('gemma-loader');
+                if (loader) loader.remove();
+                appendMessage("Hitilafu ya mtandao imetokea au muundo wa data una shida.", false);
+            }
+        }
+
+        // Matukio ya Kubonyeza Vifungo
+        sendBtn.addEventListener('click', sendMessage);
+        
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            chatBox.innerHTML = `
+                <div class="flex gap-3 max-w-[85%]">
+                    <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">G</div>
+                    <div class="bg-slate-800 rounded-2xl rounded-tl-none p-4 border border-slate-700 shadow-sm">
+                        <p class="text-sm leading-relaxed text-slate-300">Chat imefutwa. Niulize kitu chochote tena!</p>
+                    </div>
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
